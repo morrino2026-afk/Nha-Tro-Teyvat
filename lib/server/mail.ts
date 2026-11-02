@@ -76,6 +76,16 @@ function orderTable(order: Order) {
   </table>${detail}`;
 }
 
+function customerNoteBlock(note: string) {
+  const content = note.trim()
+    ? escapeHtml(note)
+    : '<span style="color:#948ba6">Khách không để lại ghi chú.</span>';
+  return `<div style="margin-top:12px;padding:12px 14px;background:#1f1930;border:1px solid #352b48;border-radius:12px">
+    <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:${ACCENT}">Ghi chú của khách</div>
+    <div style="margin-top:6px;color:#d9d3e6;white-space:pre-wrap;overflow-wrap:anywhere">${content}</div>
+  </div>`;
+}
+
 async function send(to: string, subject: string, html: string) {
   if (!mailConfigured()) {
     console.warn('[mail] Bỏ qua gửi email vì chưa cấu hình GMAIL_USER / GMAIL_APP_PASSWORD');
@@ -114,7 +124,7 @@ export async function sendOrderEmails(order: Order) {
         'Có đơn cày thuê mới',
         `<p>Một đơn hàng vừa được tạo trên ${SITE}.</p>
         ${orderTable(order)}
-        ${order.note ? `<p style="margin-top:12px"><strong>Ghi chú:</strong> ${escapeHtml(order.note)}</p>` : ''}
+        ${customerNoteBlock(order.note)}
         ${handoverBlock(handover)}
         <p style="margin-top:16px;color:#a99fc0">Khách hàng: ${order.email}</p>
         <p style="margin-top:4px;color:#a99fc0">Mã đơn: <strong style="color:${ACCENT}">${order.code}</strong></p>`,

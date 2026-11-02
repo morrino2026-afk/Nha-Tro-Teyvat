@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { after, NextResponse, type NextRequest } from 'next/server';
 import { resolveOrderItems } from '@/lib/catalog';
 import { AppError, jsonError, requireUser } from '@/lib/server/http';
 import { sendOrderEmails } from '@/lib/server/mail';
@@ -44,7 +44,9 @@ export async function POST(request: NextRequest) {
       paymentMethod,
     });
 
-    void sendOrderEmails(order);
+    after(async () => {
+      await sendOrderEmails(order);
+    });
     return NextResponse.json({ order });
   } catch (error) {
     return jsonError(error);
