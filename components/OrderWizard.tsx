@@ -366,8 +366,7 @@ export function OrderWizard() {
             </div>
 
             <div className="summary__note">
-              Mẹo: nếu tài khoản đang có nhân vật hoặc vũ khí dễ mất, hãy khoá bằng mã PIN trong game trước
-              khi đặt.
+              Mẹo: Admin có thể quên đơn của bạn, hãy liên hệ qua Zalo và kèm ảnh chụp đơn để được xử lý nhanh hơn.
             </div>
           </>
         )}
