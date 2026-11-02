@@ -1,0 +1,27 @@
+{
+  "name": "vong-nguyet-boost",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Website cày thuê Genshin Impact — La Hoàn, Ảo Cảnh, Nhà Hát",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "firebase": "^13.1.0",
+    "firebase-admin": "^14.5.0",
+    "next": "^16.4.3",
+    "nodemailer": "^10.3.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/nodemailer": "^7.0.5",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
