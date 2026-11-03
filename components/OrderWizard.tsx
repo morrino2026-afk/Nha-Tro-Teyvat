@@ -530,7 +530,7 @@ export function OrderWizard() {
         </ul>
 
         <div className="summary__note">
-          Email xác nhận sẽ được gửi tới <strong>{user.email}</strong>. Đơn có thể huỷ trước khi thợ bắt đầu.
+          Thông tin đơn sẽ được gửi đến <strong>{user.email}</strong>. Đơn có thể huỷ trước khi thợ bắt đầu.
         </div>
       </aside>
     </div>

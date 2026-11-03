@@ -65,16 +65,12 @@ const FAQ = [
     a: 'Bạn có thể nạp tiền vào ví nội bộ bằng chuyển khoản ngân hàng (quản trị viên duyệt trong vài phút), sau đó dùng số dư để đặt đơn. Ngoài ra có thể chọn chuyển khoản trực tiếp khi đặt.',
   },
   {
-    q: 'Không đạt mốc cam kết thì sao?',
-    a: 'Bạn được hoàn 100% số tiền của gói chưa hoàn thành, cộng thêm 10% vào ví cho lần đặt sau. Chính sách này áp dụng cho mọi gói La Hoàn và Nhà Hát.',
+    q: 'Chính sách hủy và hoàn tiền như thế nào?',
+    a: 'Áp dụng cho mọi gói có mốc hoàn thành được ghi rõ: nếu không đạt mốc cam kết, bạn được hoàn 100% tiền gói. Bạn được hủy và hoàn 100% nếu thợ chưa bắt đầu, sau khi đơn được nhận, bạn không còn quyền hủy. Trường hợp account không đủ điều kiện nhưng vẫn cố chấp thuê gói cao, sẽ không được hoàn tiền. Vì vậy hãy cân nhắc về lựa chọn',
   },
   {
     q: 'Tôi có thể yêu cầu đội hình cụ thể không?',
     a: 'Có. Hãy ghi vào phần ghi chú khi đặt đơn, ví dụ “Raiden, Nahida”. Thợ sẽ cố gắng tối đa trong giới hạn nhân vật bạn có.',
-  },
-  {
-    q: 'Có được hoàn tiền không?',
-    a: 'Bạn có thể hủy đơn trước khi thợ bắt đầu cày thuê. Sau khi đơn được ghi nhận, bạn không thể hủy hay hoàn tiền.',
   },
 ];
 
@@ -118,7 +114,7 @@ export default function HomePage() {
               </div>
               <p className="hero-note">
                 <IconShield width={15} height={15} />
-                Hoàn tiền 100% nếu không đạt mốc · Hỗ trợ 8:00 – 23:00
+                Hoàn 100% nếu không đạt mốc cam kết · Hỗ trợ 8:00 – 23:00
               </p>
             </Reveal>
             <Reveal delay={260}>
