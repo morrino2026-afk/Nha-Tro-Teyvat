@@ -19,8 +19,8 @@ export function Footer() {
             Đội ngũ cày thuê La Hoàn, Ảo Cảnh và Nhà Hát hoạt động từ 2026. Không đổi mật khẩu, không tiêu
             Nguyên Thạch, báo cáo minh bạch sau mỗi đơn.
           </p>
-          <a className="footer-mail" href="mailto:hotro@vongnguyet.vn">
-            <IconMail width={16} height={16} /> hotro@vongnguyet.vn
+          <a className="footer-mail" href="mailto:nhatroteyvat.support@gmail.com">
+            <IconMail width={16} height={16} /> nhatroteyvat.support@gmail.com
           </a>
           <p>
               Zalo: 0357374010
@@ -47,7 +47,7 @@ export function Footer() {
           <h4>Hỗ trợ</h4>
           <Link href="/#quy-trinh">Quy trình làm việc</Link>
           <Link href="/#faq">Câu hỏi thường gặp</Link>
-          <a href="mailto:hotro@vongnguyet.vn">Gửi email hỗ trợ</a>
+          <a href="mailto:nhatroteyvat.support@gmail.com">Gửi email hỗ trợ</a>
           <span className="footer-muted">Hỗ trợ 8:00 – 23:00 mỗi ngày</span>
         </div>
       </div>

@@ -54,7 +54,7 @@ const QUOTES = [
 const FAQ = [
   {
     q: 'Cày thuê có làm mất tài khoản không?',
-    a: 'Chúng tôi không bao giờ đổi mật khẩu hay email. Bạn có thể đổi mật khẩu ngay sau khi đơn hoàn thành. Mọi thao tác đều được ghi lại và báo cáo bằng ảnh chụp.',
+    a: 'Chúng tôi không bao giờ đổi mật khẩu hay email. Bạn có thể đổi mật khẩu ngay sau khi đơn hoàn thành. Mọi thao tác đều được ghi lại và báo cáo bằng ảnh chụp. Nên nhớ, đây không phải website bán account game. Không hợp tác với những ai muốn mua bán tài khoản.',
   },
   {
     q: 'Đơn của tôi mất bao lâu?',
@@ -70,7 +70,11 @@ const FAQ = [
   },
   {
     q: 'Tôi có thể yêu cầu đội hình cụ thể không?',
-    a: 'Có. Hãy ghi vào phần ghi chú khi đặt đơn, ví dụ “ưu tiên Raiden – Nahida”. Thợ sẽ cố gắng tối đa trong giới hạn nhân vật bạn có.',
+    a: 'Có. Hãy ghi vào phần ghi chú khi đặt đơn, ví dụ “Raiden, Nahida”. Thợ sẽ cố gắng tối đa trong giới hạn nhân vật bạn có.',
+  },
+  {
+    q: 'Có được hoàn tiền không?',
+    a: 'Bạn có thể hủy đơn trước khi thợ bắt đầu cày thuê. Sau khi đơn được ghi nhận, bạn không thể hủy hay hoàn tiền.',
   },
 ];
 
