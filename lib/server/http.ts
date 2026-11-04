@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { adminAuth, adminConfigured } from './firebase';
+import { adminAuth, adminConfigured, adminDb } from './firebase';
+import { PRIVACY_VERSION, TERMS_VERSION } from '../policies';
 
 export class AppError extends Error {
   status: number;
@@ -60,6 +61,17 @@ export async function requireUser(request: NextRequest): Promise<AuthUser> {
     };
   } catch {
     throw new AppError(401, 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
+  }
+}
+
+export async function requireAcceptedPolicies(user: AuthUser): Promise<void> {
+  const snapshot = await adminDb().collection('users').doc(user.uid).get();
+  const acceptance = snapshot.data()?.policyAcceptance;
+  if (
+    acceptance?.termsVersion !== TERMS_VERSION ||
+    acceptance?.privacyVersion !== PRIVACY_VERSION
+  ) {
+    throw new AppError(403, 'Vui lòng đồng ý với Điều khoản dịch vụ và Chính sách bảo mật để tiếp tục.');
   }
 }
 

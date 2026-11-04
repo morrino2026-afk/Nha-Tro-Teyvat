@@ -46,6 +46,8 @@ export interface Topup {
   id: string;
   code: string;
   uid: string;
+  accountId: string;
+  transferMemo: string;
   email: string;
   amount: number;
   method: string;
@@ -53,6 +55,13 @@ export interface Topup {
   status: TopupStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TopupCodeReservation {
+  code: string;
+  accountId: string;
+  transferMemo: string;
+  amount: number;
 }
 
 export interface MailPreview {

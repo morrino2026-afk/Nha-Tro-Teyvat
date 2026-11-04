@@ -6,7 +6,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'Nhà Trọ Teyvat',
+  title: 'Mộng Nguyệt Studio',
   description:
     'Dịch vụ cày thuê Genshin Impact uy tín: La Hoàn Thâm Cảnh 36 sao, Nhà Hát Kịch Ảo Tưởng và Ảo Cảnh Kỳ Bí. Không đổi mật khẩu, báo cáo minh bạch, thanh toán bằng ví hoặc chuyển khoản.',
   keywords: ['cày thuê genshin', 'la hoàn', 'nhà hát kịch ảo tưởng', 'ảo cảnh', 'boost genshin'],

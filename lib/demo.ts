@@ -1,7 +1,17 @@
-import type { Order, OrderItem, OrderStatus, PaymentMethod, Profile, Topup } from './types';
+import type {
+  Order,
+  OrderItem,
+  OrderStatus,
+  PaymentMethod,
+  Profile,
+  Topup,
+  TopupCodeReservation,
+} from './types';
+import { PRIVACY_VERSION, TERMS_VERSION } from './policies';
 
 const KEY = 'vongnguyet.demo.v1';
 const SESSION = 'vongnguyet.demo.session';
+const POLICY_ACCEPTANCE = 'vongnguyet.demo.policy-acceptance.v1';
 
 interface DemoUser {
   uid: string;
@@ -18,6 +28,8 @@ interface DemoDB {
   users: DemoUser[];
   orders: DemoOrder[];
   topups: Topup[];
+  topupCodes?: Record<string, { uid: string; amount: number; status: 'reserved' | 'used' }>;
+  revenueResetAt?: string | null;
   otps: Record<string, { code: string; expiresAt: number; attempts: number }>;
 }
 
@@ -92,6 +104,8 @@ function seed(): DemoDB {
         id: 't-demo-0',
         code: 'NAP-7KD3M',
         uid: adminUid,
+        accountId: 'AD1001',
+        transferMemo: 'NAP-7KD3M AD1001',
         email: 'admin@demo.vn',
         amount: 1000000,
         method: 'Chuyển khoản ngân hàng',
@@ -104,6 +118,8 @@ function seed(): DemoDB {
         id: 't-demo-1',
         code: 'NAP-9F2LK',
         uid: adminUid,
+        accountId: 'AD1001',
+        transferMemo: 'NAP-9F2LK AD1001',
         email: 'admin@demo.vn',
         amount: 500000,
         method: 'Chuyển khoản ngân hàng',
@@ -116,6 +132,8 @@ function seed(): DemoDB {
         id: 't-demo-2',
         code: 'NAP-1QW7B',
         uid: adminUid,
+        accountId: 'AD1001',
+        transferMemo: 'NAP-1QW7B AD1001',
         email: 'admin@demo.vn',
         amount: 200000,
         method: 'Chuyển khoản ngân hàng',
@@ -125,6 +143,8 @@ function seed(): DemoDB {
         updatedAt: nowIso(1000 * 60 * 90),
       },
     ],
+    topupCodes: {},
+    revenueResetAt: null,
     otps: {},
   };
 }
@@ -142,6 +162,14 @@ function read(): DemoDB {
     parsed.users ||= [];
     parsed.orders ||= [];
     parsed.topups ||= [];
+    parsed.topupCodes ||= {};
+    for (const topup of parsed.topups) {
+      parsed.topupCodes[topup.code] ||= {
+        uid: topup.uid,
+        amount: topup.amount,
+        status: 'used',
+      };
+    }
     parsed.otps ||= {};
     return parsed;
   } catch {
@@ -174,6 +202,32 @@ export function demoSession(): DemoSessionUser | null {
   } catch {
     return null;
   }
+}
+
+export function demoHasAcceptedPolicies(): boolean {
+  if (typeof window === 'undefined') return false;
+  const session = demoSession();
+  return Boolean(
+    session &&
+      window.localStorage.getItem(POLICY_ACCEPTANCE) ===
+        JSON.stringify({
+          uid: session.uid,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+        }),
+  );
+}
+
+export function demoAcceptPolicies(): void {
+  const session = requireSession();
+  window.localStorage.setItem(
+    POLICY_ACCEPTANCE,
+    JSON.stringify({
+      uid: session.uid,
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+    }),
+  );
 }
 
 function setSession(user: DemoSessionUser | null) {
@@ -326,18 +380,53 @@ export async function demoListTopups(): Promise<Topup[]> {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function demoCreateTopup(amount: number, note: string): Promise<Topup> {
+function randomTopupCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return `NAP-${Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')}`;
+}
+
+export async function demoReserveTopupCode(amount: number): Promise<TopupCodeReservation> {
+  await delay(120);
+  const session = requireSession();
+  if (!Number.isFinite(amount) || amount < 20000 || amount > 20000000) {
+    throw new Error('Số tiền nạp phải từ 20.000đ đến 20.000.000đ.');
+  }
+  const db = read();
+  let code = randomTopupCode();
+  while (db.topupCodes?.[code]) code = randomTopupCode();
+  const accountId = buildProfile(session).accountId;
+  db.topupCodes![code] = { uid: session.uid, amount: Math.round(amount), status: 'reserved' };
+  write(db);
+  return { code, accountId, transferMemo: `${code} ${accountId}`, amount: Math.round(amount) };
+}
+
+export async function demoCreateTopup(amount: number, note: string, code: string): Promise<Topup> {
   await delay(400);
   const session = requireSession();
-  if (!amount || amount < 20000) throw new Error('Số tiền nạp tối thiểu là 20.000đ.');
+  if (!Number.isFinite(amount) || amount < 20000 || amount > 20000000) {
+    throw new Error('Số tiền nạp phải từ 20.000đ đến 20.000.000đ.');
+  }
   const db = read();
+  const reservation = db.topupCodes?.[code];
+  if (
+    !reservation ||
+    reservation.uid !== session.uid ||
+    reservation.amount !== Math.round(amount) ||
+    reservation.status !== 'reserved'
+  ) {
+    throw new Error('Mã nạp không hợp lệ hoặc không khớp số tiền. Vui lòng nhập lại số tiền.');
+  }
+  reservation.status = 'used';
+  const accountId = buildProfile(session).accountId;
   const topup: Topup = {
     id: `t-${Date.now()}`,
-    code: randomCode('NAP'),
+    code,
     uid: session.uid,
+    accountId,
+    transferMemo: `${code} ${accountId}`,
     email: session.email,
     amount,
-    method: 'Chuyển khoản ngân hàng',
+    method: 'Quản trị viên liên hệ xác nhận',
     note,
     status: 'pending',
     createdAt: new Date().toISOString(),
@@ -366,16 +455,33 @@ export async function demoAdminData() {
   const db = read();
   const orders = [...db.orders].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const topups = [...db.topups].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const revenueOrders = orders.filter(
+    (order) =>
+      order.status !== 'cancelled' &&
+      (!db.revenueResetAt || order.createdAt > db.revenueResetAt),
+  );
   return {
     orders,
     topups,
+    revenueResetAt: db.revenueResetAt || null,
     stats: {
-      revenue: orders.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + o.price, 0),
+      revenue: revenueOrders.reduce((sum, order) => sum + order.price, 0),
       activeOrders: orders.filter((o) => o.status === 'pending' || o.status === 'processing').length,
       pendingTopups: topups.filter((t) => t.status === 'pending').length,
       totalOrders: orders.length,
     },
   };
+}
+
+export async function demoResetRevenueCounter(): Promise<{ revenue: number; resetAt: string }> {
+  await delay(180);
+  const profile = buildProfile(requireSession());
+  if (!profile.isAdmin) throw new Error('Bạn không có quyền truy cập trang quản trị.');
+  const db = read();
+  const resetAt = new Date().toISOString();
+  db.revenueResetAt = resetAt;
+  write(db);
+  return { revenue: 0, resetAt };
 }
 
 export async function demoSetOrderStatus(id: string, status: OrderStatus) {

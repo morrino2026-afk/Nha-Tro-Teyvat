@@ -48,12 +48,12 @@ export function Header() {
   return (
     <header className={`site-header ${scrolled ? 'is-scrolled' : ''}`}>
       <div className="container header-inner">
-        <Link href="/" className="brand" aria-label="Nhà Trọ Teyvat — trang chủ">
+        <Link href="/" className="brand" aria-label="Mộng Nguyệt Studio — trang chủ">
           <span className="brand__mark">
             <IconMoon width={22} height={22} />
           </span>
           <span className="brand__text">
-            <strong>Nhà Trọ Teyvat</strong>
+            <strong>Mộng Nguyệt Studio</strong>
             <small>Cày thuê Genshin</small>
           </span>
         </Link>

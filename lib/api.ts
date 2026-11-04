@@ -1,13 +1,17 @@
 import {
   demoAdminData,
+  demoAcceptPolicies,
   demoApproveTopup,
   demoCreateOrder,
   demoCreateTopup,
   demoGoogle,
+  demoHasAcceptedPolicies,
   demoListOrders,
   demoListTopups,
   demoProfile,
   demoRejectTopup,
+  demoReserveTopupCode,
+  demoResetRevenueCounter,
   demoResetPassword,
   demoSendOtp,
   demoSetOrderStatus,
@@ -18,7 +22,15 @@ import {
   type DemoSessionUser,
 } from './demo';
 import { DEMO_MODE, firebaseAuth } from './firebaseClient';
-import type { Order, OrderItem, OrderStatus, PaymentMethod, Profile, Topup } from './types';
+import type {
+  Order,
+  OrderItem,
+  OrderStatus,
+  PaymentMethod,
+  Profile,
+  Topup,
+  TopupCodeReservation,
+} from './types';
 
 export interface SessionUser {
   uid: string;
@@ -30,6 +42,7 @@ export interface AdminData {
   orders: Order[];
   topups: Topup[];
   stats: { revenue: number; activeOrders: number; pendingTopups: number; totalOrders: number };
+  revenueResetAt?: string | null;
 }
 
 async function token(): Promise<string> {
@@ -102,6 +115,20 @@ export async function signOut(): Promise<void> {
   await firebaseSignOut(firebaseAuth());
 }
 
+export async function hasAcceptedPolicies(): Promise<boolean> {
+  if (DEMO_MODE) return demoHasAcceptedPolicies();
+  const { accepted } = await request<{ accepted: boolean }>('/api/policies');
+  return accepted;
+}
+
+export async function acceptPolicies(): Promise<void> {
+  if (DEMO_MODE) {
+    demoAcceptPolicies();
+    return;
+  }
+  await request<{ accepted: boolean }>('/api/policies', { method: 'POST' });
+}
+
 /* ---------------------------- Profile ---------------------------- */
 
 export async function getProfile(): Promise<Profile> {
@@ -153,11 +180,20 @@ export async function fetchTopups(): Promise<Topup[]> {
   return topups;
 }
 
-export async function createTopup(amount: number, note: string): Promise<Topup> {
-  if (DEMO_MODE) return demoCreateTopup(amount, note);
+export async function reserveTopupCode(amount: number): Promise<TopupCodeReservation> {
+  if (DEMO_MODE) return demoReserveTopupCode(amount);
+  const { reservation } = await request<{ reservation: TopupCodeReservation }>('/api/topups/code', {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+  return reservation;
+}
+
+export async function createTopup(amount: number, note: string, code: string): Promise<Topup> {
+  if (DEMO_MODE) return demoCreateTopup(amount, note, code);
   const { topup } = await request<{ topup: Topup }>('/api/topups', {
     method: 'POST',
-    body: JSON.stringify({ amount, note }),
+    body: JSON.stringify({ amount, note, code }),
   });
   return topup;
 }
@@ -198,6 +234,14 @@ export async function resetPassword(email: string, code: string, password: strin
 export async function fetchAdminData(): Promise<AdminData> {
   if (DEMO_MODE) return demoAdminData();
   return request<AdminData>('/api/admin');
+}
+
+export async function resetRevenueCounter(): Promise<{ revenue: number; resetAt: string }> {
+  if (DEMO_MODE) return demoResetRevenueCounter();
+  return request<{ revenue: number; resetAt: string }>('/api/admin', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'revenue-reset' }),
+  });
 }
 
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {

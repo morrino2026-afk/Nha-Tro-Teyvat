@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { OrderWizard } from '@/components/OrderWizard';
 
 export const metadata = {
-  title: 'Đặt đơn cày thuê — Nhà Trọ Teyvat',
+  title: 'Đặt đơn cày thuê — Mộng Nguyệt Studio',
   description: 'Chọn gói La Hoàn, Nhà Hát hoặc Ảo Cảnh — gộp nhiều gói thành một đơn thanh toán duy nhất.',
 };
 

@@ -1,7 +1,7 @@
 import { AdminDashboard } from '@/components/AdminDashboard';
 
 export const metadata = {
-  title: 'Quản trị — Nhà Trọ Teyvat',
+  title: 'Quản trị — Mộng Nguyệt Studio',
   robots: { index: false, follow: false },
 };
 

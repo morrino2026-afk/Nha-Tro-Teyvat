@@ -11,6 +11,10 @@ import {
   IconVision,
 } from '@/components/Icons';
 import { SERVICES, formatVnd } from '@/lib/catalog';
+import { adminConfigured } from '@/lib/server/firebase';
+import { countCompletedOrders } from '@/lib/server/store';
+
+export const dynamic = 'force-dynamic';
 
 function ServiceIcon({ icon }: { icon: 'abyss' | 'theater' | 'vision' }) {
   if (icon === 'abyss') return <IconAbyss width={24} height={24} />;
@@ -74,8 +78,9 @@ const FAQ = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
   const cheapest = Math.min(...SERVICES.flatMap((service) => service.packages.map((pkg) => pkg.price)));
+  const completedOrders = adminConfigured() ? await countCompletedOrders() : null;
 
   return (
     <>
@@ -120,16 +125,16 @@ export default function HomePage() {
             <Reveal delay={260}>
               <div className="hero-stats">
                 <div className="stat">
-                  <strong>2.400+</strong>
-                  <span>Đơn đã hoàn thành</span>
+                  <strong>{completedOrders === null ? '—' : completedOrders.toLocaleString('vi-VN')}</strong>
+                  <span>{completedOrders === null ? 'Đơn hoàn thành · đang cập nhật' : 'Đơn đã hoàn thành'}</span>
                 </div>
                 <div className="stat">
-                  <strong>4.9/5</strong>
-                  <span>Từ 860 đánh giá</span>
+                  <strong>&gt; 3 năm</strong>
+                  <span>Kinh nghiệm chơi của thợ</span>
                 </div>
                 <div className="stat">
-                  <strong>&lt; 3h</strong>
-                  <span>Thời gian xử lý trung bình</span>
+                  <strong>Theo gói</strong>
+                  <span>Thời gian dự kiến hiển thị rõ</span>
                 </div>
               </div>
             </Reveal>

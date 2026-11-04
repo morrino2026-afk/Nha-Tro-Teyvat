@@ -1,13 +1,96 @@
+import { randomInt } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { formatVnd } from '../catalog';
-import type { Order, OrderItem, OrderStatus, PaymentMethod, Profile, Topup } from '../types';
+import type {
+  Order,
+  OrderItem,
+  OrderStatus,
+  PaymentMethod,
+  Profile,
+  Topup,
+  TopupCodeReservation,
+} from '../types';
 import { adminDb } from './firebase';
 import { AppError, checkIsAdmin, type AuthUser } from './http';
 import { ACCOUNT_IDS, ACCOUNT_ID_PATTERN, reserveAccountId } from './account-id';
+import { PRIVACY_VERSION, TERMS_VERSION } from '../policies';
 
 const ORDERS = 'orders';
 const TOPUPS = 'topups';
+const TOPUP_CODES = 'topupCodes';
 const USERS = 'users';
+const SETTINGS = 'settings';
+
+function topupCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return `NAP-${Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join('')}`;
+}
+
+function validateTopupAmount(amount: number): number {
+  if (!Number.isFinite(amount) || amount < 20000) {
+    throw new AppError(400, 'Số tiền nạp tối thiểu là 20.000đ.');
+  }
+  if (amount > 20000000) {
+    throw new AppError(400, 'Vui lòng liên hệ trực tiếp cho giao dịch trên 20.000.000đ.');
+  }
+  return Math.round(amount);
+}
+
+export async function reserveTopupCode(
+  user: AuthUser,
+  requestedAmount: number,
+): Promise<TopupCodeReservation> {
+  const amount = validateTopupAmount(requestedAmount);
+  const db = adminDb();
+  const profile = await ensureProfile(user);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = topupCode();
+    const codeRef = db.collection(TOPUP_CODES).doc(code);
+    const reservation = await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(codeRef);
+      if (snapshot.exists) return false;
+      transaction.create(codeRef, {
+        uid: user.uid,
+        accountId: profile.accountId,
+        amount,
+        status: 'reserved',
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return true;
+    });
+    if (reservation) {
+      return {
+        code,
+        accountId: profile.accountId,
+        transferMemo: `${code} ${profile.accountId}`,
+        amount,
+      };
+    }
+  }
+  throw new AppError(503, 'Không tạo được mã nạp duy nhất. Vui lòng thử lại.');
+}
+
+export async function hasAcceptedPolicies(uid: string): Promise<boolean> {
+  const snapshot = await adminDb().collection(USERS).doc(uid).get();
+  const acceptance = snapshot.data()?.policyAcceptance;
+  return (
+    acceptance?.termsVersion === TERMS_VERSION &&
+    acceptance?.privacyVersion === PRIVACY_VERSION
+  );
+}
+
+export async function recordPolicyAcceptance(uid: string): Promise<void> {
+  await adminDb().collection(USERS).doc(uid).set(
+    {
+      policyAcceptance: {
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        acceptedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    { merge: true },
+  );
+}
 
 function iso(value: unknown): string {
   if (value instanceof Timestamp) return value.toDate().toISOString();
@@ -88,10 +171,6 @@ function joinServices(items: OrderItem[]): string {
 
 function joinPackages(items: OrderItem[]): string {
   return items.map((item) => item.packageName).join(' + ');
-}
-
-function topupCode(): string {
-  return `NAP-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
 
 export interface CreateOrderInput {
@@ -206,6 +285,42 @@ export async function listAllOrders(limit = 100): Promise<Order[]> {
   return snapshot.docs.map((doc) => toOrder(doc.id, doc.data()));
 }
 
+export async function countCompletedOrders(): Promise<number> {
+  const snapshot = await adminDb()
+    .collection(ORDERS)
+    .where('status', '==', 'completed')
+    .count()
+    .get();
+  return snapshot.data().count;
+}
+
+export async function getRevenueCounter(): Promise<{ revenue: number; resetAt: string | null }> {
+  const db = adminDb();
+  const settings = await db.collection(SETTINGS).doc('revenueCounter').get();
+  const resetTimestamp = settings.data()?.resetAt;
+  const resetAt = resetTimestamp instanceof Timestamp ? resetTimestamp : null;
+  const query = resetAt
+    ? db.collection(ORDERS).where('createdAt', '>', resetAt)
+    : db.collection(ORDERS);
+  const snapshot = await query.get();
+  const revenue = snapshot.docs.reduce((sum, doc) => {
+    const data = doc.data();
+    return data.status === 'cancelled' ? sum : sum + Number(data.price || 0);
+  }, 0);
+  return { revenue, resetAt: resetAt?.toDate().toISOString() || null };
+}
+
+export async function resetRevenueCounter(): Promise<{ revenue: number; resetAt: string }> {
+  const ref = adminDb().collection(SETTINGS).doc('revenueCounter');
+  await ref.set({ resetAt: FieldValue.serverTimestamp() });
+  const snapshot = await ref.get();
+  const resetAt = snapshot.data()?.resetAt;
+  if (!(resetAt instanceof Timestamp)) {
+    throw new Error('Không đọc được mốc reset doanh thu vừa lưu.');
+  }
+  return { revenue: 0, resetAt: resetAt.toDate().toISOString() };
+}
+
 export async function setOrderStatus(id: string, status: OrderStatus): Promise<void> {
   const allowed: OrderStatus[] = ['awaiting_payment', 'pending', 'processing', 'completed', 'cancelled'];
   if (!allowed.includes(status)) throw new AppError(400, 'Trạng thái đơn không hợp lệ.');
@@ -225,6 +340,8 @@ function toTopup(id: string, data: FirebaseFirestore.DocumentData): Topup {
     id,
     code: data.code || id,
     uid: data.uid || '',
+    accountId: data.accountId || '',
+    transferMemo: data.transferMemo || data.code || id,
     email: data.email || '',
     amount: Number(data.amount || 0),
     method: data.method || 'Chuyển khoản ngân hàng',
@@ -239,27 +356,50 @@ export async function createTopup(
   user: AuthUser,
   amount: number,
   note: string,
+  code: string,
 ): Promise<Topup> {
-  if (!Number.isFinite(amount) || amount < 20000) {
-    throw new AppError(400, 'Số tiền nạp tối thiểu là 20.000đ.');
+  const normalizedAmount = validateTopupAmount(amount);
+  if (!/^NAP-[A-HJ-NP-Z2-9]{6}$/.test(code)) {
+    throw new AppError(400, 'Mã nạp không hợp lệ. Vui lòng nhập lại số tiền để tạo mã mới.');
   }
-  if (amount > 20000000) throw new AppError(400, 'Vui lòng liên hệ trực tiếp cho giao dịch trên 20.000.000đ.');
 
-  const ref = adminDb().collection(TOPUPS).doc();
+  const db = adminDb();
+  const ref = db.collection(TOPUPS).doc();
+  const codeRef = db.collection(TOPUP_CODES).doc(code);
   const now = new Date();
+  const profile = await ensureProfile(user);
   const topup: Topup = {
     id: ref.id,
-    code: topupCode(),
+    code,
     uid: user.uid,
+    accountId: profile.accountId,
+    transferMemo: `${code} ${profile.accountId}`,
     email: user.email,
-    amount: Math.round(amount),
-    method: 'Chuyển khoản ngân hàng',
+    amount: normalizedAmount,
+    method: 'Quản trị viên liên hệ xác nhận',
     note: note.trim().slice(0, 300),
     status: 'pending',
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };
-  await ref.set({ ...topup, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  await db.runTransaction(async (transaction) => {
+    const codeSnapshot = await transaction.get(codeRef);
+    const reservation = codeSnapshot.data();
+    if (
+      !codeSnapshot.exists ||
+      reservation?.uid !== user.uid ||
+      reservation?.amount !== normalizedAmount ||
+      reservation?.status !== 'reserved'
+    ) {
+      throw new AppError(400, 'Mã nạp không hợp lệ hoặc không khớp số tiền. Vui lòng tạo lệnh mới.');
+    }
+    transaction.update(codeRef, { status: 'used', topupId: ref.id });
+    transaction.set(ref, {
+      ...topup,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
   return topup;
 }
 

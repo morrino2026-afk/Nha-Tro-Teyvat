@@ -1,6 +1,6 @@
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { resolveOrderItems } from '@/lib/catalog';
-import { AppError, jsonError, requireUser } from '@/lib/server/http';
+import { AppError, jsonError, requireAcceptedPolicies, requireUser } from '@/lib/server/http';
 import { sendOrderEmails } from '@/lib/server/mail';
 import { createOrder, listOrders } from '@/lib/server/store';
 import { adminConfigured } from '@/lib/server/firebase';
@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!adminConfigured()) throw new AppError(503, 'Server chưa cấu hình Firebase.');
     const user = await requireUser(request);
+    await requireAcceptedPolicies(user);
     const orders = await listOrders(user.uid);
     return NextResponse.json({ orders });
   } catch (error) {
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     if (!adminConfigured()) throw new AppError(503, 'Server chưa cấu hình Firebase.');
     const user = await requireUser(request);
+    await requireAcceptedPolicies(user);
     const body = await request.json().catch(() => ({}));
 
     const resolved = resolveOrderItems(body);

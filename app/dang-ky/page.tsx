@@ -8,10 +8,11 @@ import { useToast } from '@/components/Toast';
 import { IconGoogle } from '@/components/Icons';
 import { authErrorMessage } from '@/lib/authErrors';
 import { signInGoogle, signUpEmail } from '@/lib/api';
+import { PolicyAgreement } from '@/components/PolicyAgreement';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { user, setUser, demo } = useAuth();
+  const { user, setUser, demo, acceptPolicies } = useAuth();
   const { notify } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -38,12 +39,13 @@ export default function RegisterPage() {
       return;
     }
     if (!agree) {
-      setError('Vui lòng đồng ý với điều khoản dịch vụ.');
+      setError('Vui lòng đồng ý với Điều khoản dịch vụ và Chính sách bảo mật.');
       return;
     }
     setLoading(true);
     try {
       const session = await signUpEmail(email, password, name);
+      await acceptPolicies();
       if (session) setUser(session);
       notify('Tạo tài khoản thành công!');
       router.replace('/tai-khoan');
@@ -56,9 +58,14 @@ export default function RegisterPage() {
 
   async function handleGoogle() {
     setError('');
+    if (!agree) {
+      setError('Vui lòng đồng ý với Điều khoản dịch vụ và Chính sách bảo mật.');
+      return;
+    }
     setGoogleLoading(true);
     try {
       const session = await signInGoogle();
+      await acceptPolicies();
       if (session) setUser(session);
       notify('Tạo tài khoản bằng Google thành công!');
       router.replace('/tai-khoan');
@@ -144,13 +151,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <label className="checkbox">
-            <input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} />
-            <span>
-              Tôi đồng ý với <Link href="/#faq" className="text-link">điều khoản dịch vụ</Link> và chính sách
-              bảo mật của Nhà Trọ Teyvat.
-            </span>
-          </label>
+          <PolicyAgreement checked={agree} onChange={setAgree} required />
 
           <button type="submit" className="btn btn--primary btn--block btn--lg" disabled={loading}>
             {loading ? <span className="spinner" /> : 'Tạo tài khoản'}

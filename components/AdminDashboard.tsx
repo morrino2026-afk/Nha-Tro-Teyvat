@@ -6,7 +6,14 @@ import { useAuth } from './AuthProvider';
 import { useToast } from './Toast';
 import { IconArrow, IconShield } from './Icons';
 import { ORDER_STATUS, TOPUP_STATUS, formatDate, formatVnd } from '@/lib/catalog';
-import { approveTopup, fetchAdminData, rejectTopup, updateOrderStatus, type AdminData } from '@/lib/api';
+import {
+  approveTopup,
+  fetchAdminData,
+  rejectTopup,
+  resetRevenueCounter,
+  updateOrderStatus,
+  type AdminData,
+} from '@/lib/api';
 import type { Order, OrderStatus, Topup } from '@/lib/types';
 
 const ORDER_STATUSES: OrderStatus[] = ['awaiting_payment', 'pending', 'processing', 'completed', 'cancelled'];
@@ -19,6 +26,7 @@ export function AdminDashboard() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [view, setView] = useState<'orders' | 'topups'>('orders');
+  const [resettingRevenue, setResettingRevenue] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -73,6 +81,28 @@ export function AdminDashboard() {
       notify(err instanceof Error ? err.message : 'Không xử lý được giao dịch.', 'error');
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function handleRevenueReset() {
+    if (!window.confirm('Reset doanh thu hiển thị về 0? Lịch sử đơn hàng sẽ được giữ nguyên.')) return;
+    setResettingRevenue(true);
+    try {
+      const result = await resetRevenueCounter();
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              stats: { ...prev.stats, revenue: result.revenue },
+              revenueResetAt: result.resetAt,
+            }
+          : prev,
+      );
+      notify('Đã reset mốc doanh thu. Lịch sử đơn hàng được giữ nguyên.');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Không reset được doanh thu.', 'error');
+    } finally {
+      setResettingRevenue(false);
     }
   }
 
@@ -131,6 +161,17 @@ export function AdminDashboard() {
         <div className="card stat-card">
           <span>Doanh thu ghi nhận</span>
           <strong>{formatVnd(data.stats.revenue)}</strong>
+          <span className="table__sub">
+            {data.revenueResetAt ? `Tính từ ${formatDate(data.revenueResetAt)}` : 'Tính từ toàn bộ lịch sử'}
+          </span>
+          <button
+            type="button"
+            className="mini-btn"
+            onClick={() => void handleRevenueReset()}
+            disabled={resettingRevenue}
+          >
+            {resettingRevenue ? 'Đang reset…' : 'Reset doanh thu'}
+          </button>
         </div>
         <div className="card stat-card">
           <span>Đơn đang xử lý</span>
@@ -176,7 +217,7 @@ export function AdminDashboard() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Mã</th>
+                    <th>Mã yêu cầu</th>
                     <th>Khách</th>
                     <th>Gói</th>
                     <th>UID</th>
@@ -238,9 +279,9 @@ export function AdminDashboard() {
                 <thead>
                   <tr>
                     <th>Mã</th>
-                    <th>Khách</th>
+                    <th>Khách / ID tài khoản</th>
                     <th className="table__right">Số tiền</th>
-                    <th>Ghi chú</th>
+                    <th>Ghi chú khách</th>
                     <th>Trạng thái</th>
                     <th>Thời gian</th>
                     <th className="table__right">Hành động</th>
@@ -250,9 +291,14 @@ export function AdminDashboard() {
                   {data.topups.map((topup) => (
                     <tr key={topup.id}>
                       <td className="mono">{topup.code}</td>
-                      <td>{topup.email}</td>
+                      <td>
+                        <span className="table__strong">{topup.email}</span>
+                        <span className="table__sub">ID: {topup.accountId || '—'}</span>
+                      </td>
                       <td className="table__right">{formatVnd(topup.amount)}</td>
-                      <td className="table__sub">{topup.note || '—'}</td>
+                      <td>
+                        {topup.note || '—'}
+                      </td>
                       <td>
                         <span className={`badge badge--${TOPUP_STATUS[topup.status].tone}`}>
                           {TOPUP_STATUS[topup.status].label}
@@ -299,10 +345,10 @@ export function AdminDashboard() {
           </div>
         </div>
         <ul className="service-card__list" style={{ margin: 0 }}>
-          <li>Kiểm tra sao kê ngân hàng trước khi duyệt lệnh nạp tiền.</li>
+          <li>Liên hệ khách qua email tài khoản để hướng dẫn thanh toán; chỉ duyệt sau khi xác minh tiền đã nhận thực tế.</li>
           <li>Đổi trạng thái đơn sang “Đang cày” ngay khi thợ nhận để khách yên tâm.</li>
           <li>Gửi ảnh chụp kết quả qua email sau khi đơn hoàn thành.</li>
-          <li>Đơn chuyển khoản chưa thanh toán sau 24 giờ nên chuyển sang “Đã huỷ”.</li>
+          <li>Nếu khách chưa thanh toán, hãy liên hệ để xác nhận trước khi từ chối yêu cầu.</li>
         </ul>
       </div>
     </div>

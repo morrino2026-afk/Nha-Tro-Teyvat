@@ -1,5 +1,5 @@
 /* =========================================================
-   Nhà Trọ Teyvat — bảng màu tối, tím – hồng nhạt trên nền xám
+   Mộng Nguyệt Studio — bảng màu tối, tím – hồng nhạt trên nền xám
    Đổi sắc độ bằng biến --hue (210–350), không cần build lại.
    ========================================================= */
 
@@ -1458,6 +1458,18 @@ main { position: relative; z-index: 1; }
 /* --------------------------- Page shell --------------------------- */
 
 .page-shell { padding: clamp(30px, 4vw, 52px) 0 clamp(60px, 8vw, 90px); }
+
+.legal-copy {
+  max-width: 860px;
+  margin-inline: auto;
+  color: var(--muted);
+}
+.legal-copy h1, .legal-copy h2 { color: var(--text); }
+.legal-copy h1 { font-size: clamp(2rem, 4vw, 2.8rem); margin-bottom: 20px; }
+.legal-copy h2 { font-size: 1.3rem; margin: 30px 0 10px; }
+.legal-copy p, .legal-copy li { line-height: 1.8; }
+.legal-copy ul { padding-left: 22px; }
+.legal-copy li + li { margin-top: 8px; }
 
 .page-head { margin-bottom: 30px; }
 .page-head h1 { font-size: clamp(1.8rem, 3.4vw, 2.5rem); margin-bottom: 8px; }

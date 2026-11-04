@@ -23,7 +23,7 @@ function transport(): Transporter {
   return cached;
 }
 
-const SITE = process.env.NEXT_PUBLIC_SITE_NAME || 'Nhà Trọ Teyvat';
+const SITE = process.env.NEXT_PUBLIC_SITE_NAME || 'Mộng Nguyệt Studio';
 const ACCENT = '#c9a7ff';
 
 function shell(title: string, body: string) {
@@ -156,7 +156,7 @@ export async function sendTopupEmails(topup: Topup, approved: boolean) {
         'Nạp tiền thành công',
         `<p>Số dư ví của bạn đã được cập nhật.</p>
         <table role="presentation" width="100%" style="margin-top:12px">
-          ${row('Mã giao dịch', topup.code)}
+          ${row('Mã yêu cầu', topup.code)}
           ${row('Số tiền', formatVnd(topup.amount))}
           ${row('Phương thức', topup.method)}
         </table>
@@ -171,12 +171,12 @@ export async function sendTopupEmails(topup: Topup, approved: boolean) {
       `[Nạp tiền ${topup.code}] ${formatVnd(topup.amount)} · ${topup.email}`,
       shell(
         'Yêu cầu nạp tiền mới',
-        `<p>Khách hàng vừa gửi yêu cầu nạp tiền, hãy kiểm tra sao kê và duyệt trong trang quản trị.</p>
+        `<p>Khách hàng vừa gửi yêu cầu nạp tiền. Hãy liên hệ khách để thống nhất cách thanh toán, xác minh giao dịch thực nhận rồi mới duyệt trong trang quản trị.</p>
         <table role="presentation" width="100%" style="margin-top:12px">
           ${row('Mã giao dịch', topup.code)}
+          ${row('ID tài khoản web', topup.accountId)}
           ${row('Khách hàng', topup.email)}
           ${row('Số tiền', formatVnd(topup.amount))}
-          ${row('Phương thức', topup.method)}
         </table>
         ${topup.note ? `<p style="margin-top:12px"><strong>Ghi chú:</strong> ${escapeHtml(topup.note)}</p>` : ''}`,
       ),

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { AppError, jsonError, requireUser } from '@/lib/server/http';
+import { AppError, jsonError, requireAcceptedPolicies, requireUser } from '@/lib/server/http';
 import { sendTopupEmails } from '@/lib/server/mail';
 import { createTopup, listTopups } from '@/lib/server/store';
 import { adminConfigured } from '@/lib/server/firebase';
@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!adminConfigured()) throw new AppError(503, 'Server chưa cấu hình Firebase.');
     const user = await requireUser(request);
+    await requireAcceptedPolicies(user);
     const topups = await listTopups(user.uid);
     return NextResponse.json({ topups });
   } catch (error) {
@@ -22,9 +23,10 @@ export async function POST(request: NextRequest) {
   try {
     if (!adminConfigured()) throw new AppError(503, 'Server chưa cấu hình Firebase.');
     const user = await requireUser(request);
+    await requireAcceptedPolicies(user);
     const body = await request.json().catch(() => ({}));
     const amount = Number(body.amount || 0);
-    const topup = await createTopup(user, amount, String(body.note || ''));
+    const topup = await createTopup(user, amount, String(body.note || ''), String(body.code || ''));
 
     void sendTopupEmails(topup, false);
     return NextResponse.json({ topup });

@@ -1,9 +1,9 @@
-# Nhà Trọ Teyvat — website cày thuê Genshin Impact
+# Mộng Nguyệt Studio — website cày thuê Genshin Impact
 
 Website đặt đơn cày thuê **La Hoàn Thâm Cảnh – Nhà Hát Kịch Ảo Tưởng – Ảo Cảnh Kỳ Bí**, giao diện tối
 tím – hồng nhạt trên nền xám, có thể chỉnh sắc độ ngay trên header.
 
-Toàn bộ dịch vụ dùng gói **miễn phí**: Firebase (Auth + Firestore) và Vercel (hosting), email gửi qua
+Website dùng Firebase (Auth + Firestore) cho dữ liệu và Cloudflare Workers cho hosting; email gửi qua
 **Gmail App Password**.
 
 ---
@@ -26,7 +26,8 @@ Toàn bộ dịch vụ dùng gói **miễn phí**: Firebase (Auth + Firestore) v
 
 - **Node.js 22 trở lên** (Firebase Admin SDK v14 yêu cầu Node 22+). Máy đang dùng Node 26 là hợp lệ.
 - Tài khoản Google (để tạo Firebase project và Gmail App Password).
-- Tài khoản Vercel (miễn phí) khi muốn đưa lên mạng.
+- Tài khoản Cloudflare; Workers Free có giới hạn CPU mỗi request, vì vậy có thể cần Workers Paid để chạy
+  ổn định nếu vượt giới hạn.
 
 ---
 
@@ -134,7 +135,7 @@ chặn toàn bộ là an toàn nhất.
 Firebase Console → **Authentication** → **Settings** → **Authorized domains**, thêm:
 
 - `localhost` (có sẵn)
-- tên miền Vercel của bạn, ví dụ `vong-nguyet.vercel.app`
+- tên miền Cloudflare Workers của bạn (hoặc custom domain đã cấu hình trên Cloudflare)
 - tên miền riêng nếu có
 
 Thiếu bước này, đăng nhập Google sẽ báo lỗi `auth/unauthorized-domain`.
@@ -147,7 +148,7 @@ dòng do model viết qua [Respan Gateway](https://www.respan.ai/docs/integratio
 **Observability → Logs** trên platform.
 
 1. Tạo tài khoản và API key (chọn quyền **Gateway**) tại <https://platform.respan.ai>.
-2. Điền `RESPAN_API_KEY` vào `.env.local` (server) và vào Environment Variables của Vercel.
+2. Điền `RESPAN_API_KEY` vào `.env.local` khi chạy local; khi deploy, lưu key bằng Cloudflare Worker secret.
 3. Tuỳ chọn: đổi model bằng `RESPAN_MODEL` (mặc định `gpt-5.5`), hoặc đổi endpoint bằng
    `RESPAN_BASE_URL` nếu dùng Respan Enterprise.
 
@@ -156,19 +157,27 @@ Respan tính phí theo lượt gọi; nếu hết credit thì phần gợi ý t�
 
 ---
 
-## 5. Đưa lên Vercel (miễn phí)
+## 5. Đưa lên Cloudflare Workers
 
-1. Đẩy thư mục dự án lên GitHub (repo riêng tư cũng được).
-2. Vào <https://vercel.com/new> → **Import** repo.
-3. Framework preset: **Next.js** — không cần đổi build command.
-4. Mở **Environment Variables**, thêm **toàn bộ** biến trong `.env.local` (cả `NEXT_PUBLIC_*` lẫn
-   biến bí mật) cho cả Production và Preview.
-5. **Settings → General → Node.js Version**: chọn **22.x**.
-6. Bấm **Deploy**. Sau khi có tên miền, quay lại bước **4.5** để thêm domain vào Firebase.
-7. Mở `/admin` bằng email trong `ADMIN_EMAILS` để kiểm tra.
+1. Cài dependencies bằng `npm install`, sau đó đăng nhập CLI: `npx wrangler login`.
+2. Tạo bucket cache (một lần): `npx wrangler r2 bucket create mong-nguyet-studio-opennext-cache`.
+3. Đặt các biến `NEXT_PUBLIC_FIREBASE_*` và `NEXT_PUBLIC_SITE_NAME` trong môi trường build trước khi chạy
+   `npm run deploy:cloudflare`; Next.js đóng gói các giá trị `NEXT_PUBLIC_*` vào client ở bước build.
+4. Thêm bí mật server bằng lệnh `npx wrangler secret put TEN_BIEN`, lần lượt cho
+   `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `OTP_SECRET`,
+   `GMAIL_USER`, `GMAIL_APP_PASSWORD` và (nếu dùng) `RESPAN_API_KEY`.
+5. Đặt `ADMIN_EMAILS` và `MAIL_TO` trong **Workers & Pages → mong-nguyet-studio → Settings →
+   Variables and Secrets**.
+6. Chạy `npm run deploy:cloudflare`. Để kiểm tra local trong runtime Cloudflare, dùng
+   `npm run preview:cloudflare` và tạo file `.dev.vars` cục bộ cho các bí mật (không commit file này).
+7. Thêm domain triển khai vào Firebase Authentication → Authorized domains để đăng nhập Google hoạt động.
+8. Mở `/admin` bằng email trong `ADMIN_EMAILS` để kiểm tra các chức năng.
 
-> Lưu ý: gói Vercel Hobby chỉ dành cho mục đích cá nhân/phi thương mại theo điều khoản của Vercel.
-> Nếu chạy shop thật, cân nhắc nâng cấp gói Pro.
+OpenNext yêu cầu Next.js 16.4.5 trở lên; project đã pin ở phiên bản tương thích. Workers Free hiện giới hạn
+CPU ở 10 ms mỗi request và 100.000 request mỗi ngày; lượt render Next.js động có thể vượt giới hạn CPU.
+Nếu preview/log cho thấy vượt CPU hoặc cần giới hạn cao hơn, cần bật Workers Paid. Firebase Auth/Firestore
+vẫn là dịch vụ độc lập và giữ nguyên dữ liệu/tài khoản hiện tại. OpenNext cảnh báo build trên Windows có
+thể gặp lỗi symlink; dùng WSL2 hoặc môi trường Linux/CI nếu build tại Windows thất bại.
 
 ---
 
@@ -192,7 +201,7 @@ thanh toán bằng **số dư ví** (trừ ngay) hoặc **chuyển khoản** (ch
 ### Quản trị viên
 
 1. Đăng nhập bằng email nằm trong `ADMIN_EMAILS` → vào `/admin`.
-2. Tab **Nạp tiền**: đối chiếu sao kê → **Duyệt** (cộng số dư, gửi email cho khách) hoặc **Từ chối**.
+2. Tab **Nạp tiền**: liên hệ khách qua email để hướng dẫn thanh toán, xác minh tiền đã nhận thực tế rồi **Duyệt** (cộng số dư, gửi email cho khách) hoặc **Từ chối**.
 3. Tab **Đơn hàng**: đổi trạng thái ngay trong bảng:
    `Chờ thanh toán → Chờ nhận đơn → Đang cày → Hoàn thành` (hoặc `Đã huỷ`).
 4. Khách nhận email xác nhận khi đặt đơn; shop nhận email đơn mới tại `MAIL_TO`.
@@ -276,13 +285,13 @@ giờ lưu mật khẩu Genshin, chỉ lưu UID và thông tin khách tự nhậ
 | Hiện tượng | Cách xử lý |
 | --- | --- |
 | `auth/unauthorized-domain` khi đăng nhập Google | Thêm domain vào Firebase → Authentication → Settings → Authorized domains |
-| “Máy chủ chưa được cấu hình Firebase” | Chưa điền `FIREBASE_*` trong `.env.local`/Vercel, hoặc chưa restart/deploy lại |
+| “Máy chủ chưa được cấu hình Firebase” | Chưa điền `FIREBASE_*` trong `.env.local`/Cloudflare Worker secrets, hoặc chưa deploy lại |
 | “Phiên đăng nhập đã hết hạn” | Token hết hạn hoặc sai cấu hình project; đăng nhập lại |
 | Không nhận được email | Sai App Password (phải là 16 ký tự, không phải mật khẩu Gmail); kiểm tra hộp thư rác; xem log server |
 | Nút duyệt nạp tiền báo lỗi | Email đăng nhập không nằm trong `ADMIN_EMAILS` |
-| Số dư không đổi sau khi duyệt | Tải lại trang; kiểm tra transaction trong log Vercel |
+| Số dư không đổi sau khi duyệt | Tải lại trang; kiểm tra transaction trong Cloudflare Workers logs |
 | Trang trắng sau khi deploy | Thiếu `NEXT_PUBLIC_*` lúc build → thêm biến rồi **Redeploy** |
-| Vercel báo lỗi Node | Settings → Node.js Version → 22.x rồi redeploy |
+| Cloudflare báo lỗi build/runtime | Kiểm tra `npm run preview:cloudflare`, Node.js compatibility và Worker logs |
 
 ---
 

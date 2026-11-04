@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { AppError, jsonError, requireAdmin, requireUser } from '@/lib/server/http';
+import { AppError, jsonError, requireAcceptedPolicies, requireAdmin, requireUser } from '@/lib/server/http';
 import { sendTopupEmails } from '@/lib/server/mail';
 import {
   approveTopup,
   getTopup,
+  getRevenueCounter,
   listAllOrders,
   listAllTopups,
   rejectTopup,
+  resetRevenueCounter,
   setOrderStatus,
 } from '@/lib/server/store';
 
@@ -16,17 +18,20 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const user = await requireUser(request);
+    await requireAcceptedPolicies(user);
     requireAdmin(user);
-    const [orders, topups] = await Promise.all([listAllOrders(), listAllTopups()]);
+    const [orders, topups, revenueCounter] = await Promise.all([
+      listAllOrders(),
+      listAllTopups(),
+      getRevenueCounter(),
+    ]);
     const stats = {
-      revenue: orders
-        .filter((order) => order.status !== 'cancelled')
-        .reduce((sum, order) => sum + order.price, 0),
+      revenue: revenueCounter.revenue,
       activeOrders: orders.filter((order) => ['pending', 'processing'].includes(order.status)).length,
       pendingTopups: topups.filter((topup) => topup.status === 'pending').length,
       totalOrders: orders.length,
     };
-    return NextResponse.json({ orders, topups, stats });
+    return NextResponse.json({ orders, topups, stats, revenueResetAt: revenueCounter.resetAt });
   } catch (error) {
     return jsonError(error);
   }
@@ -35,9 +40,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireUser(request);
+    await requireAcceptedPolicies(user);
     requireAdmin(user);
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || '');
+    if (action === 'revenue-reset') {
+      return NextResponse.json(await resetRevenueCounter());
+    }
     const id = String(body.id || '');
     if (!id) throw new AppError(400, 'Thiếu mã bản ghi.');
 

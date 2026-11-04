@@ -1,7 +1,7 @@
 import { AccountDashboard } from '@/components/AccountDashboard';
 
 export const metadata = {
-  title: 'Tài khoản của tôi — Nhà Trọ Teyvat',
+  title: 'Tài khoản của tôi — Mộng Nguyệt Studio',
   description: 'Quản lý số dư, lịch sử đặt hàng và lịch sử nạp tiền.',
 };
 

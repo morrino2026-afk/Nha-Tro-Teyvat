@@ -8,14 +8,16 @@ import { useToast } from '@/components/Toast';
 import { IconGoogle, IconLock, IconMail } from '@/components/Icons';
 import { authErrorMessage } from '@/lib/authErrors';
 import { signInEmail, signInGoogle } from '@/lib/api';
+import { PolicyAgreement } from '@/components/PolicyAgreement';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, setUser, demo } = useAuth();
+  const { user, setUser, demo, acceptPolicies } = useAuth();
   const { notify } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,9 +29,14 @@ export default function LoginPage() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError('');
+    if (!agree) {
+      setError('Vui lòng đồng ý với Điều khoản dịch vụ và Chính sách bảo mật.');
+      return;
+    }
     setLoading(true);
     try {
       const session = await signInEmail(email, password);
+      await acceptPolicies();
       if (session) setUser(session);
       notify('Đăng nhập thành công, chào mừng trở lại!');
       router.replace('/tai-khoan');
@@ -42,9 +49,14 @@ export default function LoginPage() {
 
   async function handleGoogle() {
     setError('');
+    if (!agree) {
+      setError('Vui lòng đồng ý với Điều khoản dịch vụ và Chính sách bảo mật.');
+      return;
+    }
     setGoogleLoading(true);
     try {
       const session = await signInGoogle();
+      await acceptPolicies();
       if (session) setUser(session);
       notify('Đăng nhập Google thành công!');
       router.replace('/tai-khoan');
@@ -111,6 +123,8 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          <PolicyAgreement checked={agree} onChange={setAgree} required />
 
           <button type="submit" className="btn btn--primary btn--block btn--lg" disabled={loading}>
             {loading ? <span className="spinner" /> : 'Đăng nhập'}

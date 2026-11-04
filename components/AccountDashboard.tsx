@@ -20,9 +20,10 @@ import {
   fetchOrders,
   fetchTopups,
   getProfile,
+  reserveTopupCode,
   saveDisplayName,
 } from '@/lib/api';
-import type { Order, OrderStatus, Profile, Topup } from '@/lib/types';
+import type { Order, OrderStatus, Profile, Topup, TopupCodeReservation } from '@/lib/types';
 
 type Tab = 'overview' | 'orders' | 'topup' | 'settings';
 
@@ -34,12 +35,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 const PRESETS = [50000, 100000, 200000, 500000, 1000000];
-
-const BANK = {
-  name: process.env.NEXT_PUBLIC_BANK_NAME || 'MB Bank',
-  account: process.env.NEXT_PUBLIC_BANK_ACCOUNT || '0123456789',
-  owner: process.env.NEXT_PUBLIC_BANK_OWNER || 'NGUYEN VAN A',
-};
 
 function OrderBadge({ status }: { status: OrderStatus }) {
   const meta = ORDER_STATUS[status] || ORDER_STATUS.pending;
@@ -83,7 +78,10 @@ export function AccountDashboard() {
   const [customAmount, setCustomAmount] = useState('');
   const [topupNote, setTopupNote] = useState('');
   const [topupLoading, setTopupLoading] = useState(false);
-  const [pendingTopup, setPendingTopup] = useState<Topup | null>(null);
+  const [topupCode, setTopupCode] = useState<TopupCodeReservation | null>(null);
+  const [topupCodeLoading, setTopupCodeLoading] = useState(false);
+  const [topupCodeError, setTopupCodeError] = useState('');
+  const [submittedTopupCode, setSubmittedTopupCode] = useState('');
 
   const [displayName, setDisplayName] = useState('');
   const [savingName, setSavingName] = useState(false);
@@ -134,13 +132,57 @@ export function AccountDashboard() {
   );
 
   const effectiveAmount = customAmount ? Number(customAmount.replace(/\D/g, '')) : amount;
+  const validTopupAmount =
+    Number.isFinite(effectiveAmount) && effectiveAmount >= 20000 && effectiveAmount <= 20000000
+      ? Math.round(effectiveAmount)
+      : 0;
+  const activeTopupCode = topupCode?.amount === validTopupAmount ? topupCode : null;
+
+  useEffect(() => {
+    let active = true;
+    setTopupCode(null);
+    setTopupCodeError('');
+    setSubmittedTopupCode('');
+
+    if (!validTopupAmount) {
+      setTopupCodeLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setTopupCodeLoading(true);
+    const timeout = window.setTimeout(() => {
+      reserveTopupCode(validTopupAmount)
+        .then((reservation) => {
+          if (active) setTopupCode(reservation);
+        })
+        .catch((err) => {
+          if (active) {
+            setTopupCodeError(err instanceof Error ? err.message : 'Không tạo được mã nạp.');
+          }
+        })
+        .finally(() => {
+          if (active) setTopupCodeLoading(false);
+        });
+    }, 350);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [validTopupAmount]);
 
   async function handleTopup(event: React.FormEvent) {
     event.preventDefault();
+    if (!activeTopupCode || topupCodeLoading) {
+      notify('Vui lòng đợi mã nạp cho số tiền đã chọn.', 'error');
+      return;
+    }
     setTopupLoading(true);
     try {
-      const created = await createTopup(effectiveAmount, topupNote);
-      setPendingTopup(created);
+      const created = await createTopup(validTopupAmount, topupNote, activeTopupCode.code);
+      setSubmittedTopupCode(created.code);
       setTopupNote('');
       notify('Đã tạo yêu cầu nạp tiền, vui lòng chuyển khoản theo hướng dẫn.');
       setTopups((prev) => [created, ...prev]);
@@ -451,7 +493,7 @@ export function AccountDashboard() {
 
                       <div className="field">
                         <label className="label" htmlFor="custom-amount">
-                          Hoặc nhập số tiền khác <em>Tối thiểu 20.000đ</em>
+                          Hoặc nhập số tiền khác <em>20.000đ – 20.000.000đ</em>
                         </label>
                         <input
                           id="custom-amount"
@@ -459,73 +501,78 @@ export function AccountDashboard() {
                           inputMode="numeric"
                           placeholder="Ví dụ 150000"
                           value={customAmount}
-                          onChange={(event) => setCustomAmount(event.target.value.replace(/\D/g, '').slice(0, 9))}
+                          onChange={(event) => {
+                            setCustomAmount(event.target.value.replace(/\D/g, '').slice(0, 9));
+                            setAmount(0);
+                          }}
                         />
                       </div>
 
                       <div className="field">
                         <label className="label" htmlFor="topup-note">
-                          Ghi chú <em>Tuỳ chọn</em>
+                          Ghi chú cho quản trị viên <em>Tuỳ chọn</em>
                         </label>
                         <input
                           id="topup-note"
                           className="input"
-                          placeholder="Vui lòng nhập ở đây."
+                          placeholder="Thông tin bổ sung về yêu cầu nạp"
                           value={topupNote}
                           onChange={(event) => setTopupNote(event.target.value)}
                           maxLength={300}
                         />
                       </div>
 
-                      <button type="submit" className="btn btn--primary btn--block" disabled={topupLoading}>
+                      <button
+                        type="submit"
+                        className="btn btn--primary btn--block"
+                        disabled={
+                          topupLoading ||
+                          topupCodeLoading ||
+                          !activeTopupCode ||
+                          submittedTopupCode === activeTopupCode.code
+                        }
+                      >
                         {topupLoading ? <span className="spinner" /> : `Tạo lệnh nạp ${formatVnd(effectiveAmount || 0)}`}
                       </button>
                       <p className="hint mt-1">
-                        Vui lòng nhập mã tài khoản vào nội dung chuyển khoản!!!
+                        Tạo yêu cầu để quản trị viên liên hệ bạn và hướng dẫn thanh toán.
                       </p>
                     </form>
 
                     <div className="bank-box">
-                      <h4>Thông tin chuyển khoản</h4>
+                      <h4>Yêu cầu nạp tiền</h4>
                       <div className="bank-row">
-                        <span>Ngân hàng</span>
-                        <b>{BANK.name}</b>
-                      </div>
-                      <div className="bank-row">
-                        <span>Số tài khoản</span>
-                        <b>{BANK.account}</b>
-                        <button type="button" className="copy-btn" onClick={() => void copy(BANK.account)}>
-                          <IconCopy width={13} height={13} /> Sao chép
-                        </button>
-                      </div>
-                      <div className="bank-row">
-                        <span>Chủ tài khoản</span>
-                        <b>{BANK.owner}</b>
+                        <span>Mã yêu cầu</span>
+                        <b className="mono">{activeTopupCode?.code || 'Hiển thị sau khi chọn số tiền'}</b>
+                        {activeTopupCode && (
+                          <button
+                            type="button"
+                            className="copy-btn"
+                            onClick={() => void copy(activeTopupCode.code, 'Đã sao chép mã yêu cầu')}
+                          >
+                            <IconCopy width={13} height={13} /> Sao chép
+                          </button>
+                        )}
                       </div>
                       <div className="bank-row">
-                        <span>Nội dung</span>
-                        <b>{pendingTopup ? pendingTopup.code : 'Mã giao dịch sau khi tạo lệnh'}</b>
+                        <span>ID tài khoản web</span>
+                        <b>{activeTopupCode?.accountId || profile?.accountId || 'Hiển thị sau khi chọn số tiền'}</b>
                       </div>
-                      <div className="bank-qr">
-                        <img
-                          src="/momo-vietqr.png"
-                          alt="Mã QR nhận chuyển khoản"
-                          className="bank-qr__image"
-                        />
-                        <p>
-                          Quét mã rồi nhập đúng số tiền và mã giao dịch sau khi tạo lệnh. Giao dịch vẫn
-                          cần quản trị viên xác nhận.
-                        </p>
-                      </div>
-                      {pendingTopup ? (
+                      {topupCodeError && <p className="error-text">{topupCodeError}</p>}
+                      {activeTopupCode ? (
                         <div className="summary__note" style={{ marginTop: 6 }}>
-                          Chuyển <strong>{formatVnd(pendingTopup.amount)}</strong> với nội dung{' '}
-                          <strong className="mono">{pendingTopup.code}</strong>. Sau khi chuyển, quản trị
-                          viên sẽ duyệt trong 5 – 15 phút (giờ hành chính).
+                          Yêu cầu nạp <strong>{formatVnd(activeTopupCode.amount)}</strong>. Sau khi bạn tạo
+                          yêu cầu, quản trị viên sẽ liên hệ qua email tài khoản hoặc bạn hãy chủ động 
+                          liên hệ admin được nạp tiền nhanh hơn và dễ dàng hơn. Vui lòng tự thanh
+                          toán và kiểm tra giao dịch trực tiếp. Chưa chuyển tiền trước khi nhận hướng dẫn.
+                          (nên nhớ, hãy ghi mã yêu cầu và ID tài khoản web khi chuyển khoản để quản trị viên xác nhận nhanh hơn)
+                          {submittedTopupCode === activeTopupCode.code &&
+                            ` Mã yêu cầu ${activeTopupCode.code} đã được gửi đến quản trị viên.`}
                         </div>
                       ) : (
                         <p className="hint" style={{ margin: 0 }}>
-                          Hiện tại chưa thể nạp thẳng vào website sau khi chuyển khoản, vui lòng liên hệ admin để duyệt bill chuyển khoản.
+                          {topupCodeError ||
+                            'Chọn gói hoặc nhập số tiền từ 20.000đ để xem mã yêu cầu.'}
                         </p>
                       )}
                     </div>

@@ -1,6 +1,8 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeFirestore, type Firestore } from 'firebase-admin/firestore';
+
+let firestore: Firestore | null = null;
 
 export function adminConfigured(): boolean {
   return Boolean(
@@ -30,7 +32,10 @@ function adminApp() {
 }
 
 export function adminDb() {
-  return getFirestore(adminApp());
+  if (!firestore) {
+    firestore = initializeFirestore(adminApp(), { preferRest: true });
+  }
+  return firestore;
 }
 
 export function adminAuth() {

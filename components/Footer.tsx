@@ -11,7 +11,7 @@ export function Footer() {
               <IconMoon width={22} height={22} />
             </span>
             <span className="brand__text">
-              <strong>Nhà Trọ Teyvat</strong>
+              <strong>Mộng Nguyệt Studio</strong>
               <small>Cày thuê Genshin tận tâm</small>
             </span>
           </div>
@@ -47,13 +47,15 @@ export function Footer() {
           <h4>Hỗ trợ</h4>
           <Link href="/#quy-trinh">Quy trình làm việc</Link>
           <Link href="/#faq">Câu hỏi thường gặp</Link>
+          <Link href="/dieu-khoan">Điều khoản dịch vụ</Link>
+          <Link href="/chinh-sach-bao-mat">Chính sách bảo mật</Link>
           <a href="mailto:nhatroteyvat.support@gmail.com">Gửi email hỗ trợ</a>
           <span className="footer-muted">Hỗ trợ 8:00 – 23:00 mỗi ngày</span>
         </div>
       </div>
 
       <div className="container footer-bottom">
-        <span>© {new Date().getFullYear()} Nhà Trọ Teyvat. Website fan-made, không liên kết với HoYoverse.</span>
+        <span>© {new Date().getFullYear()} Mộng Nguyệt Studio. Website fan-made, không liên kết với HoYoverse.</span>
         <span className="footer-muted">Genshin Impact là thương hiệu của HoYoverse.</span>
       </div>
     </footer>
